@@ -1,54 +1,84 @@
 // src/components/driverhub/HomeScreen.jsx
 import React, { useMemo } from "react";
 
+function getTimeGreeting(now = new Date()) {
+  const h = now.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getLoadTitle(load) {
+  return (
+    load?.meta?.loadNumber ||
+    load?.meta?.bolNumber ||
+    load?.meta?.id ||
+    load?.id ||
+    "Load"
+  );
+}
+
+function getLoadSubtitle(load) {
+  const pickup = load?.meta?.pickup || "Pickup";
+  const delivery = load?.meta?.delivery || "Delivery";
+  return `${pickup} → ${delivery}`;
+}
+
+function Badge({ tone = "slate", children }) {
+  const toneMap = {
+    green: "bg-emerald-100 text-emerald-700",
+    amber: "bg-amber-100 text-amber-700",
+    blue: "bg-blue-100 text-blue-700",
+    slate: "bg-slate-100 text-slate-700",
+  };
+  return (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+        toneMap[tone] || toneMap.slate
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function Section({ title, children }) {
   return (
-    <div className="px-4 mt-4">
-      <div className="text-[10px] tracking-[0.18em] font-semibold text-slate-400 mb-2">
+    <section className="mt-6">
+      <div className="px-4 text-[11px] tracking-widest font-semibold text-slate-400">
         {title}
       </div>
-      <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-sm overflow-hidden">
-        {children}
-      </div>
-    </div>
+      <div className="mt-2 px-4">{children}</div>
+    </section>
   );
 }
 
 function EmptyCard() {
   return (
-    <div className="p-4">
-      <div className="h-3 w-40 bg-slate-200 rounded mb-3" />
-      <div className="h-3 w-64 bg-slate-100 rounded mb-2" />
-      <div className="h-3 w-28 bg-slate-100 rounded mb-2" />
-      <div className="h-10" />
-    </div>
+    <div className="h-28 rounded-2xl bg-white border border-slate-200 shadow-sm" />
   );
 }
 
-function LoadRow({ load, subtitle, badgeText, badgeTone = "default", onClick }) {
-  const badgeClass =
-    badgeTone === "warn"
-      ? "bg-amber-200 text-amber-950"
-      : badgeTone === "ok"
-      ? "bg-emerald-200 text-emerald-950"
-      : "bg-slate-200 text-slate-900";
-
+function LoadCard({ load, right = null, onClick, footer = null }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="w-full text-left px-4 py-3 border-t border-slate-200 hover:bg-slate-50"
+      className="w-full text-left rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-slate-300 active:scale-[0.99] transition"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-semibold text-slate-900 truncate">
-            {load?.meta?.loadNumber || load?.id || "Load"}
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="font-bold text-slate-900">{getLoadTitle(load)}</div>
+          <div className="text-sm text-slate-600 mt-0.5">
+            {getLoadSubtitle(load)}
           </div>
-          <div className="text-sm text-slate-600 truncate">{subtitle}</div>
         </div>
-        <div className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}`}>
-          {badgeText}
-        </div>
+        <div className="shrink-0">{right}</div>
       </div>
+
+      {footer ? (
+        <div className="px-4 pb-4 text-sm text-slate-600">{footer}</div>
+      ) : null}
     </button>
   );
 }
@@ -61,105 +91,89 @@ export default function HomeScreen({
   onStartNewLoad,
   onGoLoadsTab,
 }) {
-  const incompleteLoads = useMemo(() => {
-    const seen = new Set();
-    return (missingPaperworkLoads || [])
-      .filter((l) => l?.id && !seen.has(l.id) && seen.add(l.id))
-      .slice(0, 3);
-  }, [missingPaperworkLoads]);
+  const greeting = useMemo(() => getTimeGreeting(new Date()), []);
 
-  const drafts = useMemo(() => {
-    const seen = new Set();
-    return (draftLoads || [])
-      .filter((l) => l?.id && !seen.has(l.id) && seen.add(l.id))
-      .slice(0, 3);
-  }, [draftLoads]);
+  const hasActive = !!activeLoad;
+  const hasIncomplete = (missingPaperworkLoads?.length || 0) > 0;
+  const hasDrafts = (draftLoads?.length || 0) > 0;
 
   return (
-    <div className="pb-24">
-      <div className="pt-5 px-4">
-        <div className="text-xs text-slate-500">Good morning,</div>
-
-        <div className="flex items-center justify-between mt-1">
-          <div className="text-2xl font-extrabold text-slate-900">
-            Driver X <span className="text-xl">👋</span>
+    <div className="pb-6">
+      {/* top greeting block */}
+      <div className="px-4 pt-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-slate-500 text-sm">{greeting},</div>
+            <div className="text-3xl font-extrabold tracking-tight">
+              Driver X <span className="align-middle">👋</span>
+            </div>
           </div>
 
           <button
-            onClick={() => onGoLoadsTab?.()}
-            className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+            type="button"
+            onClick={onGoLoadsTab}
+            className="text-sm font-semibold text-slate-600 hover:text-slate-900"
           >
             View all
           </button>
         </div>
 
         <button
-          onClick={() => onStartNewLoad?.()}
-          className="mt-4 w-full rounded-2xl bg-blue-600 text-white font-extrabold py-4 shadow-lg shadow-blue-600/20 hover:bg-blue-700 active:scale-[0.99]"
+          type="button"
+          onClick={onStartNewLoad}
+          className="mt-4 w-full rounded-2xl bg-blue-600 text-white font-semibold py-4 shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:bg-blue-800"
         >
           + New Load
         </button>
       </div>
 
+      {/* ACTIVE LOAD */}
       <Section title="ACTIVE LOAD">
-        {activeLoad ? (
-          <div>
-            <LoadRow
-              load={activeLoad}
-              subtitle={`${activeLoad?.meta?.pickupCity || "Pickup"} → ${activeLoad?.meta?.deliveryCity || "Delivery"}`}
-              badgeText="ACTIVE"
-              badgeTone="ok"
-              onClick={() => onOpenLoad?.(activeLoad.id)}
-            />
-            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <div className="text-xs text-slate-600">
-                Keep this load visible until paperwork and signatures are completed.
-              </div>
-            </div>
-          </div>
+        {hasActive ? (
+          <LoadCard
+            load={activeLoad}
+            onClick={() => onOpenLoad?.(activeLoad?.id)}
+            right={<Badge tone="green">ACTIVE</Badge>}
+            footer="Keep this load visible until paperwork and signatures are completed."
+          />
         ) : (
           <EmptyCard />
         )}
       </Section>
 
+      {/* INCOMPLETE LOADS */}
       <Section title="INCOMPLETE LOADS">
-        {incompleteLoads.length > 0 ? (
-          <div>
-            {incompleteLoads.map((l) => (
-              <LoadRow
+        {hasIncomplete ? (
+          <div className="space-y-2">
+            {missingPaperworkLoads.slice(0, 2).map((l) => (
+              <LoadCard
                 key={l.id}
                 load={l}
-                subtitle={`${l?.meta?.pickupCity || "Pickup"} → ${l?.meta?.deliveryCity || "Delivery"}`}
-                badgeText="MISSING"
-                badgeTone="warn"
                 onClick={() => onOpenLoad?.(l.id)}
+                right={<Badge tone="amber">MISSING</Badge>}
+                footer={
+                  <span className="text-blue-600 font-semibold">
+                    Go to Loads →
+                  </span>
+                }
               />
             ))}
-            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-              <button
-                className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-                onClick={() => onGoLoadsTab?.()}
-              >
-                Go to Loads →
-              </button>
-            </div>
           </div>
         ) : (
           <EmptyCard />
         )}
       </Section>
 
+      {/* DRAFT LOADS */}
       <Section title="DRAFT LOADS">
-        {drafts.length > 0 ? (
-          <div>
-            {drafts.map((l) => (
-              <LoadRow
+        {hasDrafts ? (
+          <div className="space-y-2">
+            {draftLoads.slice(0, 2).map((l) => (
+              <LoadCard
                 key={l.id}
                 load={l}
-                subtitle="Draft in progress"
-                badgeText="DRAFT"
-                badgeTone="default"
                 onClick={() => onOpenLoad?.(l.id)}
+                right={<Badge tone="blue">DRAFT</Badge>}
               />
             ))}
           </div>

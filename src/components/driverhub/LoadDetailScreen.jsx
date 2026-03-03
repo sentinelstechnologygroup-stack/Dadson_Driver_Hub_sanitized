@@ -323,6 +323,79 @@ export default function LoadDetailScreen({
             />
           </Field>
 
+          <Field label="Consignee" required={false}>
+            <TextInput
+              value={String(load?.deliveryReceipt?.consignee ?? "")}
+              onChange={(e) => onSaveDeliveryReceipt?.({ consignee: e.target.value })}
+              onBlur={saveDraftNow}
+              placeholder="Consignee..."
+            />
+          </Field>
+
+          <Field label="Shipper" required={false}>
+            <TextInput
+              value={String(load?.deliveryReceipt?.shipper ?? "")}
+              onChange={(e) => onSaveDeliveryReceipt?.({ shipper: e.target.value })}
+              onBlur={saveDraftNow}
+              placeholder="Shipper..."
+            />
+          </Field>
+
+          <Field label="Description / Special Instructions" required={false}>
+            <TextArea
+              rows={3}
+              value={String(load?.deliveryReceipt?.instructions ?? "")}
+              onChange={(e) => onSaveDeliveryReceipt?.({ instructions: e.target.value })}
+              onBlur={saveDraftNow}
+              placeholder="Product description, notes, special instructions..."
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Field label="Weight" required={false}>
+                <TextInput
+                  value={String(load?.deliveryReceipt?.weight ?? "")}
+                  onChange={(e) => onSaveDeliveryReceipt?.({ weight: e.target.value })}
+                  onBlur={saveDraftNow}
+                  placeholder="Weight..."
+                />
+              </Field>
+            </div>
+            <div>
+              <Field label="Print Name" required={false}>
+                <TextInput
+                  value={String(load?.deliveryReceipt?.printName ?? "")}
+                  onChange={(e) => onSaveDeliveryReceipt?.({ printName: e.target.value })}
+                  onBlur={saveDraftNow}
+                  placeholder="Print name..."
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Field label="Tractor #" required={false}>
+                <TextInput
+                  value={String(load?.deliveryReceipt?.tractorNumber ?? "")}
+                  onChange={(e) => onSaveDeliveryReceipt?.({ tractorNumber: e.target.value })}
+                  onBlur={saveDraftNow}
+                  placeholder="Tractor #"
+                />
+              </Field>
+            </div>
+            <div>
+              <Field label="Trailer #" required={false}>
+                <TextInput
+                  value={String(load?.deliveryReceipt?.trailerNumber ?? "")}
+                  onChange={(e) => onSaveDeliveryReceipt?.({ trailerNumber: e.target.value })}
+                  onBlur={saveDraftNow}
+                  placeholder="Trailer #"
+                />
+              </Field>
+            </div>
+          </div>
           {!deliveryReceiptRequiredOk ? (
             <div className="mt-2 text-xs text-amber-700 font-bold">
               Complete all required fields before marking Delivery Receipt complete.

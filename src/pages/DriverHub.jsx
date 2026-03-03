@@ -1,7 +1,7 @@
 // src/pages/DriverHub.jsx
-// @ts-nocheck
 import React, { useMemo, useState } from "react";
 
+import DriverHubHeader from "@/components/driverhub/DriverHubHeader";
 import HomeScreen from "@/components/driverhub/HomeScreen";
 import LoadDetailScreen from "@/components/driverhub/LoadDetailScreen";
 import LoadsTabScreen from "@/components/driverhub/LoadsTabScreen";
@@ -27,15 +27,84 @@ const SCREENS = Object.freeze({
   DELIVERY_COMPLETE: "delivery_complete",
 });
 
+/**
+ * @typedef {{ loadId?: string|null, error?: string|null }} NavParams
+ */
+
+function MenuDrawer({ open, onClose, onGo }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60]">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        aria-label="Close menu"
+        onClick={onClose}
+      />
+
+      <div className="absolute left-0 top-0 h-full w-[280px] bg-white shadow-2xl">
+        <div className="h-14 px-4 flex items-center justify-between border-b">
+          <div className="font-semibold">Menu</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 text-sm font-semibold"
+          >
+            Close
+          </button>
+        </div>
+
+        <nav className="p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => onGo(SCREENS.HOME)}
+            className="w-full text-left px-3 py-3 rounded-xl hover:bg-slate-100 font-semibold"
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            onClick={() => onGo(SCREENS.TAB_LOADS)}
+            className="w-full text-left px-3 py-3 rounded-xl hover:bg-slate-100 font-semibold"
+          >
+            Loads
+          </button>
+          <button
+            type="button"
+            onClick={() => onGo(SCREENS.TAB_DOCS)}
+            className="w-full text-left px-3 py-3 rounded-xl hover:bg-slate-100 font-semibold"
+          >
+            Documents
+          </button>
+          <button
+            type="button"
+            onClick={() => onGo(SCREENS.TAB_PAY)}
+            className="w-full text-left px-3 py-3 rounded-xl hover:bg-slate-100 font-semibold"
+          >
+            Pay
+          </button>
+        </nav>
+      </div>
+    </div>
+  );
+}
+
 export default function DriverHub() {
   const loadsApi = useLoadsStore();
 
+  /** @type {[string, (v:string)=>void]} */
   const [screen, setScreen] = useState(SCREENS.HOME);
-  const [params, setParams] = useState({});
 
+  /** @type {[NavParams, (v:NavParams)=>void]} */
+  const [params, setParams] = useState(/** @type {NavParams} */ ({}));
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  /** @param {string} nextScreen @param {NavParams} [nextParams] */
   function go(nextScreen, nextParams = {}) {
     setScreen(nextScreen);
-    setParams(nextParams);
+    setParams(nextParams || {});
   }
 
   const activeLoadId = loadsApi?.state?.activeLoadId || null;
@@ -43,6 +112,48 @@ export default function DriverHub() {
 
   const currentLoadId = params?.loadId || activeLoadId || null;
   const currentLoad = currentLoadId ? loadsApi.getLoad(currentLoadId) : null;
+
+  // ✅ compatibility navigate() so any screen still calling navigate(...) won’t crash
+  // Supports: navigate(-1), navigate("/"), navigate("/loads"), navigate("/documents"), navigate("/pay")
+  function navigate(to, opts) {
+    // back
+    if (to === -1) {
+      go(SCREENS.HOME);
+      return;
+    }
+
+    // some libs call navigate({to:"/x"}) style — normalize best-effort
+    const str =
+      typeof to === "string"
+        ? to
+        : (to && typeof to === "object" && typeof to.to === "string" ? to.to : "");
+
+    const lower = String(str || "").toLowerCase();
+
+    if (!lower || lower === "/" || lower.includes("home") || lower.includes("driverhub")) {
+      go(SCREENS.HOME);
+      return;
+    }
+    if (lower.includes("load") && (opts?.state?.loadId || opts?.loadId)) {
+      go(SCREENS.LOAD_DETAIL, { loadId: opts?.state?.loadId || opts?.loadId });
+      return;
+    }
+    if (lower.includes("doc")) {
+      go(SCREENS.TAB_DOCS);
+      return;
+    }
+    if (lower.includes("pay")) {
+      go(SCREENS.TAB_PAY);
+      return;
+    }
+    if (lower.includes("load")) {
+      go(SCREENS.TAB_LOADS);
+      return;
+    }
+
+    // default safe landing
+    go(SCREENS.HOME);
+  }
 
   function onTabChange(tabKey) {
     if (tabKey === "loads") return go(SCREENS.TAB_LOADS);
@@ -71,13 +182,30 @@ export default function DriverHub() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
-      <div className="flex-1">
+      <DriverHubHeader
+        title="Dadson Trucking"
+        subtitle="DriverHub"
+        onMenu={() => setMenuOpen(true)}
+        onProfile={() => console.log("[DriverHubHeader] profile")}
+      />
+
+      <MenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onGo={(next) => {
+          setMenuOpen(false);
+          go(next);
+        }}
+      />
+
+      <main className="flex-1 pb-20">
         {screen === SCREENS.HOME && (
           <HomeScreen
+            navigate={navigate}
             activeLoad={activeLoad}
             missingPaperworkLoads={loadsApi.missingPaperwork}
             draftLoads={loadsApi.drafts}
-            onOpenLoad={openLoad}
+            onOpenLoad={(id) => openLoad(id)}
             onStartNewLoad={startNewLoad}
             onGoLoadsTab={() => go(SCREENS.TAB_LOADS)}
           />
@@ -85,25 +213,30 @@ export default function DriverHub() {
 
         {screen === SCREENS.TAB_LOADS && (
           <LoadsTabScreen
+            navigate={navigate}
             loads={loadsApi.loads}
             activeLoadId={activeLoadId}
             missingPaperworkLoads={loadsApi.missingPaperwork}
-            onOpenLoad={openLoad}
+            onOpenLoad={(id) => openLoad(id)}
             onStartNewLoad={startNewLoad}
           />
         )}
 
         {screen === SCREENS.TAB_DOCS && (
           <DocumentsTabScreen
+            navigate={navigate}
             activeLoad={activeLoad}
-            onOpenLoad={() => (activeLoadId ? openLoad(activeLoadId) : go(SCREENS.TAB_LOADS))}
+            onOpenLoad={() =>
+              activeLoadId ? openLoad(activeLoadId) : go(SCREENS.TAB_LOADS)
+            }
           />
         )}
 
-        {screen === SCREENS.TAB_PAY && <PayTabScreen />}
+        {screen === SCREENS.TAB_PAY && <PayTabScreen navigate={navigate} />}
 
         {screen === SCREENS.LOAD_DETAIL && (
           <LoadDetailScreen
+            navigate={navigate}
             load={currentLoad}
             onBack={() => go(SCREENS.HOME)}
             onGoLoadsTab={() => go(SCREENS.TAB_LOADS)}
@@ -133,6 +266,7 @@ export default function DriverHub() {
 
         {screen === SCREENS.BOL_UPLOAD && (
           <BOLUploadScreen
+            navigate={navigate}
             load={currentLoad}
             onBack={() => go(SCREENS.LOAD_DETAIL, { loadId: currentLoadId })}
             onUploaded={() => {
@@ -145,6 +279,7 @@ export default function DriverHub() {
 
         {screen === SCREENS.DRIVER_SIG && (
           <DriverSigScreen
+            navigate={navigate}
             load={currentLoad}
             onBack={() => go(SCREENS.LOAD_DETAIL, { loadId: currentLoadId })}
             onSigned={() => {
@@ -157,6 +292,7 @@ export default function DriverHub() {
 
         {screen === SCREENS.RECEIVER_SIG && (
           <ReceiverSigScreen
+            navigate={navigate}
             load={currentLoad}
             onBack={() => go(SCREENS.LOAD_DETAIL, { loadId: currentLoadId })}
             onSigned={() => {
@@ -169,20 +305,17 @@ export default function DriverHub() {
 
         {screen === SCREENS.DELIVERY_COMPLETE && (
           <DeliveryCompleteScreen
+            navigate={navigate}
             load={currentLoad}
             onDone={() => go(SCREENS.HOME)}
             onViewLoads={() => go(SCREENS.TAB_LOADS)}
           />
         )}
-      </div>
+      </main>
 
-      {/* Provide BOTH prop styles so BottomNav (old/new) works */}
-      <BottomNav
-        value={bottomNavValue}
-        onChange={onTabChange}
-        activeTab={bottomNavValue}
-        goTab={onTabChange}
-      />
+      <div className="fixed bottom-0 left-0 right-0 z-50">
+        <BottomNav value={bottomNavValue} onChange={onTabChange} />
+      </div>
     </div>
   );
 }
